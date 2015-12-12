@@ -1,0 +1,24 @@
+{
+    "name": "jakulov/container",
+    "description": "Simple universal Container & DIContainer",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Yakov Akulov",
+            "email": "jakulov@gmail.com"
+        }
+    ],
+    "autoload": {
+      "psr-4": {
+        "jakulov\\Container\\": "src/jakulov/Container"
+      }
+    },
+    "minimum-stability": "dev",
+    "require": {
+        "container-interop/container-interop": "^1.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^5.1"
+    }
+}
