@@ -5,8 +5,12 @@ namespace jakulov\Container;
  * Class DIContainer
  * @package jakulov\Container
  */
-class DIContainer extends Container
+class DIContainer
 {
+    protected static $instance;
+    /** @var array */
+    protected $config = [];
+
     /**
      * @param array $config
      * @return DIContainer
@@ -26,10 +30,34 @@ class DIContainer extends Container
      */
     protected function __construct(array $config)
     {
-        parent::__construct($config);
+        $this->createFlatConfig($config);
 
         $this->config['service.di_container'] = &$this;
         $this->config['service.container'] = Container::getInstance($config);
+    }
+
+    /**
+     * @param array $config
+     * @param string $key
+     * @param array $flatConfig
+     * @return array
+     */
+    protected function createFlatConfig(array $config, $key = '', &$flatConfig = []) : array
+    {
+        foreach($config as $k => $value) {
+            $index = ($key ? $key .'.'. $k : $k);
+            $flatConfig[$index] = $value;
+            if(is_array($value)) {
+                $this->createFlatConfig($value, $index, $flatConfig);
+            }
+        }
+
+        return $flatConfig;
+    }
+
+    private function __clone()
+    {
+
     }
 
     /**
@@ -42,22 +70,20 @@ class DIContainer extends Container
 
     /**
      * @param string $id
-     * @param null $default
      * @return mixed|object
      * @throws ContainerException
      */
-    public function get($id, $default = null)
+    public function get($id)
     {
         $service = $this->getServiceConfigOrObject($id);
-        if(!$service) {
-            return $default;
+        if(is_object($service)) {
+            return $service;
         }
-        if(!is_object($service)) {
-            // init service
+        if(is_array($service)) {
             return $this->initService($id, $service);
         }
 
-        return $service;
+        throw new ContainerException(sprintf('Service "%s" not found in config', $id));
     }
 
     /**
@@ -180,5 +206,14 @@ class DIContainer extends Container
                 );
             }
         }
+    }
+
+    /**
+     * @param $id
+     * @return bool
+     */
+    public function has($id)
+    {
+        return isset($this->config[$id]);
     }
 }
