@@ -19,7 +19,7 @@ class Container implements ContainerInterface
      */
     public static function getInstance(array $config = [])
     {
-        if(self::$instance === null) {
+        if (self::$instance === null) {
             self::$instance = new self($config);
         }
 
@@ -43,10 +43,10 @@ class Container implements ContainerInterface
      */
     protected function createFlatConfig(array $config, $key = '', &$flatConfig = []) : array
     {
-        foreach($config as $k => $value) {
-            $index = ($key ? $key .'.'. $k : $k);
+        foreach ($config as $k => $value) {
+            $index = ($key ? $key . '.' . $k : $k);
             $flatConfig[$index] = $value;
-            if(is_array($value)) {
+            if (is_array($value)) {
                 $this->createFlatConfig($value, $index, $flatConfig);
             }
         }
