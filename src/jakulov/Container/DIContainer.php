@@ -1,15 +1,19 @@
 <?php
 namespace jakulov\Container;
 
+use Interop\Container\ContainerInterface;
+
 /**
  * Class DIContainer
  * @package jakulov\Container
  */
-class DIContainer
+class DIContainer implements ContainerInterface
 {
     protected static $instance;
     /** @var array */
     protected $config = [];
+    /** @var array */
+    protected $dependencyStack;
 
     /**
      * @param array $config
@@ -70,7 +74,7 @@ class DIContainer
 
     /**
      * @param string $id
-     * @return mixed|object
+     * @return mixed
      * @throws ContainerException
      */
     public function get($id)
@@ -99,9 +103,6 @@ class DIContainer
 
         return $obj;
     }
-
-    /** @var array */
-    protected $dependencyStack;
 
     /**
      * @param $id
@@ -156,7 +157,7 @@ class DIContainer
             if ($arguments) {
                 $dependencies = [];
                 foreach ($arguments as $dependency) {
-                    $dependencies[] = $this->resolveDependency($id, $dependency);
+                    $dependencies[] = $this->resolveDependency($id, $dependency, true);
                 }
                 $reflection = new \ReflectionClass($class);
                 $service = $reflection->newInstanceArgs($dependencies);
@@ -207,7 +208,7 @@ class DIContainer
     {
         foreach ($aware as $setter => $dependency) {
             if (method_exists($service, $setter)) {
-                call_user_func_array([$service, $setter], [$this->resolveDependency($id, $dependency)]);
+                call_user_func_array([$service, $setter], [$this->resolveDependency($id, $dependency, true)]);
             } else {
                 throw new ContainerException(
                     sprintf('Method "%s" not exists in class "%s"', $setter, get_class($service))
