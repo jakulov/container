@@ -30,6 +30,7 @@ return [
         'another_test' => [
             'class' => 'Service\\AnotherTestService',
         ],
+        'alias_test' => '@another_test',
         'interface_test' => [
             'class' => 'Service\\InterfaceTestService'
         ],

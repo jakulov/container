@@ -86,6 +86,13 @@ class DIContainer implements ContainerInterface
         if (is_array($service)) {
             return $this->initService($id, $service);
         }
+        if (is_string($service) && stripos($service, '@') === 0) {
+            $serviceAlias = stripos($service, 'service.') === 0 ?
+                str_replace('@', '', $service) :
+                'service.'. str_replace('@', '', $service);
+
+            return $this->get($serviceAlias);
+        }
 
         throw new ContainerException(sprintf('Service "%s" not found in config', $id));
     }

@@ -61,6 +61,7 @@ This quite simple but agile implementation of DI Container.
           'another_test' => [
               'class' => 'Service\\AnotherTestService',
           ],
+          'alias_test' => '@another_test',
           'interface_test' => [
               'class' => 'Service\\InterfaceTestService'
           ],

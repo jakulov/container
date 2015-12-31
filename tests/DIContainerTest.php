@@ -40,6 +40,18 @@ class DIContainerTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($interfaceTestService, $anotherTestService->interfaceTestService);
     }
 
+    public function testAlias()
+    {
+        $dic = \jakulov\Container\DIContainer::getInstance(require __DIR__ .'/../src/jakulov/Container/config.php');
+        /** @var Service\AnotherTestService $anotherTestService */
+        $anotherTestService = $dic->get('service.another_test');
+
+        /** @var Service\AnotherTestService $anotherTestService */
+        $anotherTestServiceByAlias = $dic->get('service.alias_test');
+
+        $this->assertEquals($anotherTestService, $anotherTestServiceByAlias, 'alias works');
+    }
+
 
 }
 
