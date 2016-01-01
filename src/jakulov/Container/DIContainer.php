@@ -1,19 +1,21 @@
 <?php
 namespace jakulov\Container;
 
-use Interop\Container\ContainerInterface;
-
 /**
  * Class DIContainer
  * @package jakulov\Container
  */
-class DIContainer implements ContainerInterface
+class DIContainer implements DependencyInjectionContainerInterface
 {
     protected static $instance;
     /** @var array */
     protected $config = [];
     /** @var array */
+    protected $services = [];
+    /** @var array */
     protected $dependencyStack;
+    /** @var array */
+    protected $provideStack = [];
 
     /**
      * @param array $config
@@ -34,10 +36,10 @@ class DIContainer implements ContainerInterface
      */
     protected function __construct(array $config)
     {
-        $this->createFlatConfig($config);
+        $this->config = $this->createFlatConfig($config);
 
-        $this->config['service.di_container'] = &$this;
-        $this->config['service.container'] = Container::getInstance($config);
+        $this->services['service.di_container'] = &$this;
+        $this->services['service.container'] = Container::getInstance($config);
     }
 
     /**
@@ -69,7 +71,7 @@ class DIContainer implements ContainerInterface
      */
     protected function getContainer()
     {
-        return $this->config['service.container'];
+        return $this->services['service.container'];
     }
 
     /**
@@ -79,6 +81,7 @@ class DIContainer implements ContainerInterface
      */
     public function get($id)
     {
+        $id = $this->serviceAliasToId($id);
         $service = $this->getServiceConfigOrObject($id);
         if (is_object($service)) {
             return $service;
@@ -87,14 +90,21 @@ class DIContainer implements ContainerInterface
             return $this->initService($id, $service);
         }
         if (is_string($service) && stripos($service, '@') === 0) {
-            $serviceAlias = stripos($service, 'service.') === 0 ?
-                str_replace('@', '', $service) :
-                'service.'. str_replace('@', '', $service);
-
-            return $this->get($serviceAlias);
+            return $this->get($this->serviceAliasToId($service));
         }
 
         throw new ContainerException(sprintf('Service "%s" not found in config', $id));
+    }
+
+    /**
+     * @param string $service
+     * @return string
+     */
+    protected function serviceAliasToId($service)
+    {
+        return  stripos($service, 'service.') === 0 || stripos($service, 'service.') === 1 ?
+            str_replace('@', '', $service) :
+            'service.'. str_replace('@', '', $service);
     }
 
     /**
@@ -103,12 +113,21 @@ class DIContainer implements ContainerInterface
      */
     protected function getServiceConfigOrObject($id)
     {
-        $obj = isset($this->config[$id]) && is_object($this->config[$id]) ? $this->config[$id] : null;
-        if (!$obj) {
-            $obj = $this->getContainer()->get($id);
+        $obj = isset($this->services[$id]) && is_object($this->services[$id]) ? $this->services[$id] : null;
+        if ($obj === null) {
+            $obj = $this->getServiceConfig($id);
         }
 
         return $obj;
+    }
+
+    /**
+     * @param $id
+     * @return mixed
+     */
+    protected function getServiceConfig($id)
+    {
+        return $this->getContainer()->get($id);
     }
 
     /**
@@ -125,6 +144,10 @@ class DIContainer implements ContainerInterface
                 throw new ContainerException(sprintf('Service'));
             }
         }
+        if(isset($serviceConfig['parent']) && $serviceConfig['parent']) {
+            $serviceConfig = $this->mergeWithParentConfig($serviceConfig);
+        }
+
         $this->dependencyStack[$id] = 1;
         $service = $this->getServiceObject($id, $serviceConfig);
 
@@ -144,7 +167,69 @@ class DIContainer implements ContainerInterface
             $this->dependencyStack = [];
         }
 
-        return $this->config[$id] = $service;
+        return $this->services[$id] = $service;
+    }
+
+    /**
+     * @param string $id
+     * @param object $dependency
+     * @return $this
+     */
+    public function provide($id, $dependency)
+    {
+        $id = $this->serviceAliasToId($id);
+
+        $this->services[$id] = $dependency;
+        if(isset($this->provideStack[$id]) && is_array($this->provideStack[$id])) {
+            foreach($this->provideStack[$id] as $serviceId => $setter) {
+                $service = $this->services[$serviceId];
+                call_user_func_array([$service, $setter], [$dependency]);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param $className
+     * @param array $arguments
+     * @return object
+     */
+    public function resolve($className, array $arguments = [])
+    {
+        $id = null;
+        $service = $this->getServiceObject($id, [
+            'class' => $className,
+            'args' => $arguments,
+        ]);
+
+        $aware = [];
+        foreach (class_implements(get_class($service)) as $interface) {
+            foreach ($this->getContainer()->get('container.di.aware.' . $interface, []) as $setter => $dependency) {
+                $aware[$setter] = $dependency;
+            }
+        }
+
+        $this->initServiceDependencies($id, $service, $aware);
+        $this->dependencyStack = [];
+
+        return $service;
+    }
+
+
+    /**
+     * @param array $config
+     * @return array
+     * @throws ContainerException
+     */
+    protected function mergeWithParentConfig(array $config)
+    {
+        $parentConfig = $this->getServiceConfig($this->serviceAliasToId($config['parent']));
+        if($parentConfig === null) {
+            throw new ContainerException(sprintf('Parent "%s" refs to unknown service', $config['parent']));
+        }
+
+        return array_replace_recursive($parentConfig, $config);
     }
 
     /**
@@ -188,11 +273,13 @@ class DIContainer implements ContainerInterface
     protected function resolveDependency($id, $dependency, $isArgs = false)
     {
         if (stripos($dependency, '@') === 0) {
-            $dependencyId = str_replace('@', '', $dependency);
+            //$dependencyId = str_replace('@', '', $dependency);
+            $dependencyId = $this->serviceAliasToId($dependency);
             $dependencyConfig = $this->getContainer()->get($dependencyId);
             if ($dependencyConfig && is_array($dependencyConfig)) {
                 return $this->initService($dependencyId, $dependencyConfig, true);
-            } else {
+            }
+            else {
                 throw new ContainerException(
                     sprintf('Service "%s" has dependency on not exists service "%s"', $id, $dependencyId)
                 );
@@ -216,6 +303,10 @@ class DIContainer implements ContainerInterface
         foreach ($aware as $setter => $dependency) {
             if (method_exists($service, $setter)) {
                 call_user_func_array([$service, $setter], [$this->resolveDependency($id, $dependency, true)]);
+                if(strpos($dependency, '@') === 0) {
+                    // remember service depends on services
+                    $this->provideStack[$this->serviceAliasToId($dependency)][$id] = $setter;
+                }
             } else {
                 throw new ContainerException(
                     sprintf('Method "%s" not exists in class "%s"', $setter, get_class($service))

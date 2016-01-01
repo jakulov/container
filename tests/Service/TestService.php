@@ -22,6 +22,8 @@ class TestService
     public $containerValue;
 
     public $scalarValue;
+    /** @var RequestTestService */
+    public $requestTestService;
 
     public function __construct($argument1, $argument2)
     {
@@ -44,5 +46,9 @@ class TestService
         $this->scalarValue = $scalarValue;
     }
 
+    public function setRequestTest(RequestTestService $requestTestService)
+    {
+        $this->requestTestService = $requestTestService;
+    }
 
 }

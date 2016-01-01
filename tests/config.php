@@ -25,6 +25,7 @@ return [
                 'setAnotherTestService' => '@service.another_test',
                 'setContainerValue' => ':foo',
                 'setScalarValue' => 'value',
+                'setRequestTest' => '@request_test',
             ],
         ],
         'another_test' => [
@@ -33,6 +34,15 @@ return [
         'alias_test' => '@another_test',
         'interface_test' => [
             'class' => 'Service\\InterfaceTestService'
+        ],
+        'child_test' => [
+            'parent' => '@test',
+            'aware' => [
+                'setScalarValue' => 'child_value'
+            ],
+        ],
+        'request_test' => [
+            'class' => 'Service\\RequestTestService'
         ],
     ],
 ];
