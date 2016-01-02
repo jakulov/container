@@ -14,6 +14,8 @@ class DIContainer implements DependencyInjectionContainerInterface
     protected $services = [];
     /** @var array */
     protected $dependencyStack;
+    /** @var string */
+    protected $resolvingServiceId = '';
     /** @var array */
     protected $provideStack = [];
 
@@ -141,14 +143,21 @@ class DIContainer implements DependencyInjectionContainerInterface
     {
         if ($asDependency) {
             if (isset($this->dependencyStack[$id])) {
-                throw new ContainerException(sprintf('Service'));
+                throw new ContainerException(sprintf(
+                    'Service %s has recursive dependency on %s', $this->resolvingServiceId, $id
+                ));
             }
         }
+        else {
+            $this->resolvingServiceId = $id;
+            $this->dependencyStack = [];
+        }
+        $this->dependencyStack[$id] = 1;
+
         if(isset($serviceConfig['parent']) && $serviceConfig['parent']) {
             $serviceConfig = $this->mergeWithParentConfig($serviceConfig);
         }
 
-        $this->dependencyStack[$id] = 1;
         $service = $this->getServiceObject($id, $serviceConfig);
 
         $aware = isset($serviceConfig['aware']) ? $serviceConfig['aware'] : [];
@@ -163,9 +172,6 @@ class DIContainer implements DependencyInjectionContainerInterface
         }
 
         $this->initServiceDependencies($id, $service, $aware);
-        if ($asDependency === false) {
-            $this->dependencyStack = [];
-        }
 
         return $this->services[$id] = $service;
     }
