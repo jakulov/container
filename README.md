@@ -1,5 +1,5 @@
 # Container #
-Simple universal Container & DIContainer
+Simple universal PHP Container & DIContainer (Dependency Injection)
 
 Can be installed with composer
 
@@ -76,9 +76,19 @@ This quite simple but agile implementation of DI Container.
     echo get_class( $testService->anotherTestService ); // Service\\AnotherTestService
     echo get_class( $testService->anotherTestService->interfaceTestService ); // Service\\InterfaceTestService
     
+Service can also resolve dependencies without declaration in config, if it's dependencies declared in class with help of aware interfaces. 
+
+    $service = $dic->resolve(\Service\UnresolvedTestService::class);
+    
+If you want to make you services reusable with multiple requests, you should renew some dependencies on each request. 
+For example it could be HTTP Request instance. If request service declared with id "request", you can provide new object like this:
+
+    $request = \Symfony\Component\HttpFoundation\Request::createFromGlobals();
+    $dic->provide('request', $request); // updated dependency in all services
+    
 ## Tests ##
 
 Run:
-vendor/bin/phpunit tests/
+./run_tests.sh
 
 Tests are also examples for usage library
